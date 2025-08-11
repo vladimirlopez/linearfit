@@ -14,82 +14,90 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch (_) {}
 
-        const state = {
-            title: 'Title',
-            xLabel: 'X-Axis',
-            yLabel: 'Y-Axis',
-        xScaleType: 'linear',
-        yScaleType: 'linear',
-        xMin: undefined,
-        xMax: undefined,
-        yMin: undefined,
-        yMax: undefined,
-        regressionLabelId: 'regression-label'
-    };
+            const state = {
+                title: 'Title',
+                x: { symbol: 'x', name: 'X-Variable', units: 'units' },
+                y: { symbol: 'y', name: 'Y-Variable', units: 'units' },
+                xScaleType: 'linear',
+                yScaleType: 'linear',
+                xMin: undefined,
+                xMax: undefined,
+                yMin: undefined,
+                yMax: undefined,
+                regressionLabelId: 'regression-label'
+            };
 
-    function buildChart() {
-        const data = {
-            datasets: [
-                {
-                    label: 'Data',
-                    data: [],
-                    backgroundColor: '#007bff',
-                    borderColor: '#007bff',
-                    showLine: false,
-                    pointRadius: 5
+        function buildChart() {
+            const data = {
+                datasets: [
+                    {
+                        label: 'Data',
+                        data: [],
+                        backgroundColor: '#007bff',
+                        borderColor: '#007bff',
+                        showLine: false,
+                        pointRadius: 5
+                    },
+                    {
+                        label: 'Linear Fit',
+                        data: [],
+                        borderColor: '#dc3545',
+                        borderWidth: 2,
+                        showLine: true,
+                        type: 'line',
+                        pointRadius: 0
+                    }
+                ]
+            };
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: false },
+                    annotation: {
+                        annotations: {}
+                    },
+                    zoom: {
+                        pan: { enabled: true, mode: 'xy' },
+                        zoom: {
+                            wheel: { enabled: true },
+                            pinch: { enabled: true },
+                            drag: { enabled: false },
+                            mode: 'xy'
+                        }
+                    }
                 },
-                {
-                    label: 'Linear Fit',
-                    data: [],
-                    borderColor: '#dc3545',
-                    borderWidth: 2,
-                    showLine: true,
-                    type: 'line',
-                    pointRadius: 0
+                scales: {
+                    x: {
+                        type: state.xScaleType,
+                        title: { display: true, text: axisLabel('x') },
+                        ticks: { maxTicksLimit: 10 },
+                        min: state.xMin,
+                        max: state.xMax
+                    },
+                    y: {
+                        type: state.yScaleType,
+                        title: { display: true, text: axisLabel('y') },
+                        ticks: { maxTicksLimit: 8 },
+                        min: state.yMin,
+                        max: state.yMax
+                    }
                 }
-            ]
-        };
+            };
 
-        const options = {
-            responsive: true,
-            maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        title: { display: false },
-                        annotation: {
-                    annotations: {}
-                },
-                                zoom: {
-                                    pan: { enabled: true, mode: 'xy' },
-                                    zoom: {
-                                        wheel: { enabled: true },
-                                        pinch: { enabled: true },
-                                        drag: { enabled: false },
-                                        mode: 'xy'
-                                    }
-                                }
-            },
-            scales: {
-                x: {
-                    type: state.xScaleType,
-                    title: { display: true, text: state.xLabel },
-                    ticks: { maxTicksLimit: 10 },
-                    min: state.xMin,
-                    max: state.xMax
-                },
-                y: {
-                    type: state.yScaleType,
-                    title: { display: true, text: state.yLabel },
-                    ticks: { maxTicksLimit: 8 },
-                    min: state.yMin,
-                    max: state.yMax
-                }
-            }
-        };
+            const ctx = chartCanvas.getContext('2d');
+            chart = new Chart(ctx, { type: 'scatter', data, options });
+        }
 
-        const ctx = chartCanvas.getContext('2d');
-        chart = new Chart(ctx, { type: 'scatter', data, options });
-    }
+        function axisLabel(axis) {
+            const v = state[axis];
+            let label = v.symbol || axis;
+            if (v.name) label = `${v.name} (${v.symbol || axis})`;
+            if (v.units) label += ` [${v.units}]`;
+            return label;
+        }
 
     function parseTable() {
         const rows = Array.from(document.querySelectorAll('#data-table tbody tr'));
@@ -132,31 +140,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return { slope, intercept };
     }
 
-        function updateRegressionAnnotation(slope, intercept, xData, yData) {
-            if (!xData || !yData || xData.length < 2) return;
-            const minX = Math.min(...xData);
-            const maxY = Math.max(...yData);
-            const rangeX = Math.max(...xData) - minX || 1;
-            const rangeY = maxY - Math.min(...yData) || 1;
-            // Position 5% from left, 5% below top of data range
-            const x = minX + 0.05 * rangeX;
-            const y = maxY - 0.05 * rangeY;
-            const text = `y = ${slope.toFixed(3)}x + ${intercept.toFixed(3)}`;
-        chart.options.plugins.annotation.annotations[state.regressionLabelId] = {
-            type: 'label',
-            xValue: x,
-            yValue: y,
-            backgroundColor: 'rgba(255,255,255,0.85)',
-            borderColor: 'rgba(0,0,0,0.4)',
-            borderWidth: 1,
-            borderRadius: 6,
-            content: [text],
-            font: { size: 14, family: getComputedStyle(document.body).fontFamily },
-            padding: 6,
-            callout: { display: false },
-            draggable: true
-        };
-    }
+            function updateRegressionAnnotation(slope, intercept, xData, yData) {
+                if (!xData || !yData || xData.length < 2) return;
+                const minX = Math.min(...xData);
+                const maxY = Math.max(...yData);
+                const rangeX = Math.max(...xData) - minX || 1;
+                const rangeY = maxY - Math.min(...yData) || 1;
+                // Position 5% from left, 5% below top of data range
+                const x = minX + 0.05 * rangeX;
+                const y = maxY - 0.05 * rangeY;
+                // Use variable symbols and units in equation
+                const xs = state.x.symbol || 'x';
+                const ys = state.y.symbol || 'y';
+                const xu = state.x.units ? ` [${state.x.units}]` : '';
+                const yu = state.y.units ? ` [${state.y.units}]` : '';
+                const eq = `${ys}${yu} = ${slope.toFixed(4)}${xs}${xu} + ${intercept.toFixed(4)}`;
+                chart.options.plugins.annotation.annotations[state.regressionLabelId] = {
+                    type: 'label',
+                    xValue: x,
+                    yValue: y,
+                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    borderColor: 'rgba(0,0,0,0.4)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    content: [eq],
+                    font: { size: 15, family: getComputedStyle(document.body).fontFamily },
+                    padding: 7,
+                    callout: { display: false },
+                    draggable: true
+                };
+            }
 
     function applyAxesFromControls() {
         const xMin = parseFloat(document.getElementById('x-min').value);
@@ -233,22 +246,112 @@ document.addEventListener('DOMContentLoaded', () => {
 
             chart.data.datasets[0].data = sorted;
 
-                if (xs.length >= 2) {
-                    const { slope, intercept } = linearRegression(xs, ys);
-                // Build fit line across current x-range
-                const xStart = Math.min(...xs);
-                const xEnd = Math.max(...xs);
-                chart.data.datasets[1].data = [
-                    { x: xStart, y: slope * xStart + intercept },
-                    { x: xEnd, y: slope * xEnd + intercept }
-                ];
-                updateRegressionAnnotation(slope, intercept, xs, ys);
-                    setEquationText(`y = ${slope.toFixed(4)}x + ${intercept.toFixed(4)}`);
-            } else {
-                chart.data.datasets[1].data = [];
-                chart.options.plugins.annotation.annotations = {};
-                    setEquationText('');
+        if (xs.length >= 2) {
+            const { slope, intercept } = linearRegression(xs, ys);
+            // Extrapolate fit line to current visible axis range
+            const xMin = (typeof chart.options.scales.x.min === 'number') ? chart.options.scales.x.min : Math.min(...xs);
+            const xMax = (typeof chart.options.scales.x.max === 'number') ? chart.options.scales.x.max : Math.max(...xs);
+            chart.data.datasets[1].data = [
+                { x: xMin, y: slope * xMin + intercept },
+                { x: xMax, y: slope * xMax + intercept }
+            ];
+            // Units for slope and intercept
+            const xsym = state.x.symbol || 'x';
+            const ysym = state.y.symbol || 'y';
+            const xunit = state.x.units;
+            const yunit = state.y.units;
+            let slopeUnits = '';
+            if (xunit && yunit) slopeUnits = ` (${yunit}/${xunit})`;
+            else if (yunit) slopeUnits = ` (${yunit})`;
+            let interceptUnits = yunit ? ` (${yunit})` : '';
+            // Equation string
+            const eq = `${ysym}${yunit ? ' ['+yunit+']' : ''} = ${slope.toFixed(4)}${slopeUnits} ${xsym}${xunit ? ' ['+xunit+']' : ''} + ${intercept.toFixed(4)}${interceptUnits}`;
+            // Show equation in annotation box in chart
+            chart.options.plugins.annotation.annotations[state.regressionLabelId] = {
+                type: 'label',
+                xValue: xMin + 0.05 * (xMax - xMin),
+                yValue: Math.max(...ys) - 0.05 * (Math.max(...ys) - Math.min(...ys)),
+                backgroundColor: 'rgba(255,255,255,0.92)',
+                borderColor: '#1a2238',
+                borderWidth: 2,
+                borderRadius: 8,
+                content: [eq],
+                font: { size: 15, family: getComputedStyle(document.body).fontFamily },
+                padding: 8,
+                callout: { display: false },
+                draggable: true
+            };
+            setEquationText(''); // Hide below-chart equation
+        } else {
+            chart.data.datasets[1].data = [];
+            chart.options.plugins.annotation.annotations = {};
+            setEquationText('');
+        }
+    // Modal dialog for header editing
+    function showHeaderModal(axis) {
+        const modal = document.getElementById('header-modal');
+        const form = document.getElementById('header-form');
+        const v = state[axis];
+        document.getElementById('var-fullname').value = v.name || '';
+        document.getElementById('var-units').value = v.units || '';
+        document.getElementById('var-symbol').value = v.symbol || axis;
+        document.getElementById('var-axis').value = axis;
+        modal.style.display = 'block';
+        setTimeout(() => document.getElementById('var-fullname').focus(), 100);
+    }
+    function closeHeaderModal() {
+        document.getElementById('header-modal').style.display = 'none';
+    }
+    // Always allow editing variable headers, even if table is empty
+    document.querySelectorAll('.editable-header').forEach(th => {
+        th.addEventListener('click', () => showHeaderModal(th.dataset.axis));
+        th.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                showHeaderModal(th.dataset.axis);
+
             }
+        }); // End of editable cell keydown handler
+    });
+    document.getElementById('modal-close').onclick = closeHeaderModal;
+    document.getElementById('header-modal').onclick = e => {
+        if (e.target === document.getElementById('header-modal')) closeHeaderModal();
+    };
+    document.getElementById('header-form').onsubmit = function(e) {
+        e.preventDefault();
+        const axis = document.getElementById('var-axis').value;
+        state[axis].name = document.getElementById('var-fullname').value.trim() || axis.toUpperCase();
+        state[axis].units = document.getElementById('var-units').value.trim();
+        state[axis].symbol = document.getElementById('var-symbol').value.trim() || axis;
+        // Update table header
+        document.querySelector(`th[data-axis="${axis}"]`).innerText = `${state[axis].name} (${state[axis].units})`;
+        // Update axis label and equation
+        chart.options.scales[axis].title.text = axisLabel(axis);
+        updateChart();
+        closeHeaderModal();
+    };
+    // Show y-intercept button: pan/zoom to include (0, intercept)
+    document.getElementById('show-y-intercept').onclick = function() {
+        // Get current fit
+        const pts = parseTable();
+        if (pts.length < 2) return;
+        const xs = pts.map(p => p.x);
+        const ys = pts.map(p => p.y);
+        const { slope, intercept } = linearRegression(xs, ys);
+        // Find current x/y axis min/max
+        let xmin = Math.min(...xs, 0);
+        let xmax = Math.max(...xs, 0);
+        let ymin = Math.min(...ys, intercept);
+        let ymax = Math.max(...ys, intercept);
+        // Pad a bit
+        const padX = (xmax - xmin || 1) * 0.05;
+        const padY = (ymax - ymin || 1) * 0.1;
+        chart.options.scales.x.min = xmin - padX;
+        chart.options.scales.x.max = xmax + padX;
+        chart.options.scales.y.min = ymin - padY;
+        chart.options.scales.y.max = ymax + padY;
+        chart.update();
+    };
 
         const headers = document.querySelectorAll('#data-table thead th');
         const xHeader = headers[0]?.innerText?.trim() || state.xLabel;
@@ -279,85 +382,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('#data-table tbody').addEventListener('click', (e) => {
         const btn = e.target.closest('.delete-row');
         if (btn) {
-            const row = btn.closest('tr');
-            row?.remove();
+            btn.closest('tr').remove();
+            updateChart();
         }
     });
-        // Debounced live update on edit
-        let updateTimer;
-        document.querySelector('#data-table tbody').addEventListener('input', () => {
-            clearTimeout(updateTimer);
-            updateTimer = setTimeout(() => {
-                updateChart();
-            }, 150);
-        });
-
-        // Keyboard navigation for editable cells
-        document.querySelector('#data-table').addEventListener('keydown', (e) => {
-            const cell = e.target.closest('td, th');
-            if (!cell || !cell.isContentEditable) return;
-            const tr = cell.parentElement;
-            const table = cell.closest('table');
-            const tbody = table.querySelector('tbody');
-            const isHeader = cell.tagName.toLowerCase() === 'th';
-
-            const getCellIndex = (c) => Array.from(c.parentElement.children).indexOf(c);
-            const colIndex = getCellIndex(cell);
-            function focusCell(r, c) {
-                const row = r?.children?.[c];
-                if (row) {
-                    row.focus();
-                    const sel = window.getSelection();
-                    const range = document.createRange();
-                    range.selectNodeContents(row);
-                    range.collapse(false);
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                }
-            }
-
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (isHeader) return; // keep header Enter default to break lines if needed
-                // Move to same column on next row (create one if at end)
-                const rows = Array.from(tbody.querySelectorAll('tr'));
-                const rowIndex = rows.indexOf(tr);
-                if (rowIndex === rows.length - 1) {
-                    // add a row
-                    const newTr = document.createElement('tr');
-                    newTr.innerHTML = `
-                        <td contenteditable="true"></td>
-                        <td contenteditable="true"></td>
-                        <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
-                    `;
-                    tbody.appendChild(newTr);
-                    focusCell(newTr, colIndex);
-                } else {
-                    focusCell(rows[rowIndex + 1], colIndex);
-                }
-            } else if (e.key === 'Tab') {
-                // Move to next editable cell; wrap to first cell of next row
-                const cells = Array.from(table.querySelectorAll('tbody td[contenteditable="true"]'));
-                const idx = cells.indexOf(cell);
-                if (idx >= 0) {
-                    e.preventDefault();
-                    const next = cells[idx + (e.shiftKey ? -1 : 1)];
-                    if (next) {
-                        focusCell(next.parentElement, getCellIndex(next));
-                    } else if (!e.shiftKey) {
-                        // add a row and go to first cell
-                        const newTr = document.createElement('tr');
-                        newTr.innerHTML = `
-                            <td contenteditable="true"></td>
-                            <td contenteditable="true"></td>
-                            <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
-                        `;
-                        tbody.appendChild(newTr);
-                        focusCell(newTr, 0);
-                    }
-                }
-            }
-        });
+    // Update chart when table cells are edited
+    document.querySelector('#data-table tbody').addEventListener('input', (e) => {
+        updateChart();
+    });
 
     document.getElementById('plot').addEventListener('click', updateChart);
 
@@ -434,6 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
         // Initialize
-        buildChart();
-            document.getElementById('graph-title').innerText = state.title;
+    buildChart();
+    document.getElementById('graph-title').innerText = state.title;
 });
+

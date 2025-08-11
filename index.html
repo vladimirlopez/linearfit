@@ -19,8 +19,8 @@
                 <table id="data-table">
                     <thead>
                         <tr>
-                            <th contenteditable="true">X-Variable (units)</th>
-                            <th contenteditable="true">Y-Variable (units)</th>
+                            <th class="editable-header" tabindex="0" data-axis="x">X-Variable (units)</th>
+                            <th class="editable-header" tabindex="0" data-axis="y">Y-Variable (units)</th>
                             <th class="no-edit">Remove</th>
                         </tr>
                     </thead>
@@ -58,9 +58,24 @@
                 <div class="controls">
                     <button id="export">Export Graph</button>
                     <button id="reset-zoom">Reset View</button>
+                    <button id="show-y-intercept">Show y-intercept</button>
                 </div>
                 <div id="equation" class="equation" aria-live="polite"></div>
                 <div class="axis-controls">
+        <!-- Modal for editing variable info -->
+        <div id="header-modal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" id="modal-close">&times;</span>
+                <h3>Edit Variable</h3>
+                <form id="header-form">
+                    <label>Full Name <input type="text" id="var-fullname" required></label><br>
+                    <label>Units <input type="text" id="var-units"></label><br>
+                    <label>Symbol <input type="text" id="var-symbol" maxlength="3"></label><br>
+                    <input type="hidden" id="var-axis">
+                    <button type="submit">Save</button>
+                </form>
+            </div>
+        </div>
                     <div class="axis-row">
                         <div>
                             <label for="x-min">X min</label>
