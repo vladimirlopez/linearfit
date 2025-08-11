@@ -1,29 +1,25 @@
-document.getElementById('clear').addEventListener('click', () => {
-    document.getElementById('data').value = '';
-    document.getElementById('title').value = '';
-    document.getElementById('x-variable').value = '';
-    document.getElementById('x-units').value = '';
-    document.getElementById('y-variable').value = '';
-    document.getElementById('y-units').value = '';
-
-    const chart = Chart.getChart('chart');
-    if (chart) {
-        chart.destroy();
-    }
+document.getElementById('add-row').addEventListener('click', () => {
+    const tableBody = document.querySelector('#data-table tbody');
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td contenteditable="true"></td>
+        <td contenteditable="true"></td>
+    `;
+    tableBody.appendChild(newRow);
 });
 
 document.getElementById('plot').addEventListener('click', () => {
-    try {
-    const data = document.getElementById('data').value.trim().split('\n').map(line => {
-        const [x, y] = line.split(',').map(Number);
+    const tableRows = document.querySelectorAll('#data-table tbody tr');
+    const data = Array.from(tableRows).map(row => {
+        const cells = row.querySelectorAll('td');
+        const x = parseFloat(cells[0].innerText);
+        const y = parseFloat(cells[1].innerText);
         return { x, y };
-    });
+    }).filter(p => !isNaN(p.x) && !isNaN(p.y));
 
-    const title = document.getElementById('title').value;
-    const xVariable = document.getElementById('x-variable').value;
-    const xUnits = document.getElementById('x-units').value;
-    const yVariable = document.getElementById('y-variable').value;
-    const yUnits = document.getElementById('y-units').value;
+    const headers = document.querySelectorAll('#data-table th');
+    const xLabel = headers[0].innerText;
+    const yLabel = headers[1].innerText;
 
     const xValues = data.map(p => p.x);
     const yValues = data.map(p => p.y);
@@ -54,14 +50,14 @@ document.getElementById('plot').addEventListener('click', () => {
         options: {
             title: {
                 display: true,
-                text: title,
+                text: `${yLabel} vs. ${xLabel}`,
                 fontColor: '#212529'
             },
             scales: {
                 xAxes: [{
                     scaleLabel: {
                         display: true,
-                        labelString: `${xVariable} (${xUnits})`,
+                        labelString: xLabel,
                         fontColor: '#212529'
                     },
                     ticks: {
@@ -71,7 +67,7 @@ document.getElementById('plot').addEventListener('click', () => {
                 yAxes: [{
                     scaleLabel: {
                         display: true,
-                        labelString: `${yVariable} (${yUnits})`,
+                        labelString: yLabel,
                         fontColor: '#212529'
                     },
                     ticks: {
@@ -100,9 +96,36 @@ document.getElementById('plot').addEventListener('click', () => {
             },
         },
     });
-}
+});
 
-    });
+document.getElementById('clear').addEventListener('click', () => {
+    const tableBody = document.querySelector('#data-table tbody');
+    tableBody.innerHTML = `
+        <tr>
+            <td contenteditable="true"></td>
+            <td contenteditable="true"></td>
+        </tr>
+    `;
+
+    const headers = document.querySelectorAll('#data-table th');
+    headers[0].innerText = 'X-Variable (units)';
+    headers[1].innerText = 'Y-Variable (units)';
+
+    const chart = Chart.getChart('chart');
+    if (chart) {
+        chart.destroy();
+    }
+});
+
+document.getElementById('export').addEventListener('click', () => {
+    const chart = Chart.getChart('chart');
+    if (chart) {
+        const url = chart.toBase64Image();
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'linear-fit-graph.png';
+        a.click();
+    }
 });
 
 function linearRegression(x, y) {
