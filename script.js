@@ -1,3 +1,17 @@
+document.getElementById('clear').addEventListener('click', () => {
+    document.getElementById('data').value = '';
+    document.getElementById('title').value = '';
+    document.getElementById('x-variable').value = '';
+    document.getElementById('x-units').value = '';
+    document.getElementById('y-variable').value = '';
+    document.getElementById('y-units').value = '';
+
+    const chart = Chart.getChart('chart');
+    if (chart) {
+        chart.destroy();
+    }
+});
+
 document.getElementById('plot').addEventListener('click', () => {
     try {
     const data = document.getElementById('data').value.trim().split('\n').map(line => {
