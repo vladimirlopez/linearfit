@@ -4,29 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Linear Fit</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.2.0">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>LINEAR FIT</h1>
-            <p>Enter your data points to generate a linear fit graph.</p>
         </header>
 
         <main>
             <div class="section">
                 <h2>DATA</h2>
+                <p>Click on the table headers to edit the variable names and units. Click on the cells to enter your data.</p>
                 <table id="data-table">
                     <thead>
                         <tr>
                             <th contenteditable="true">X-Variable (units)</th>
                             <th contenteditable="true">Y-Variable (units)</th>
+                            <th class="no-edit">Remove</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td contenteditable="true"></td>
                             <td contenteditable="true"></td>
+                            <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
+                        </tr>
+                        <tr>
+                            <td contenteditable="true"></td>
+                            <td contenteditable="true"></td>
+                            <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
+                        </tr>
+                        <tr>
+                            <td contenteditable="true"></td>
+                            <td contenteditable="true"></td>
+                            <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
                         </tr>
                     </tbody>
                 </table>
@@ -39,9 +51,54 @@
 
             <div class="section">
                 <h2>GRAPH</h2>
-                <canvas id="chart"></canvas>
+                <div id="graph-title" class="graph-title" contenteditable="true" aria-label="Graph title">Title</div>
+                <div class="chart-container">
+                    <canvas id="chart"></canvas>
+                </div>
                 <div class="controls">
                     <button id="export">Export Graph</button>
+                    <button id="reset-zoom">Reset View</button>
+                </div>
+                <div class="axis-controls">
+                    <div class="axis-row">
+                        <div>
+                            <label for="x-min">X min</label>
+                            <input id="x-min" type="number" step="any" placeholder="auto">
+                        </div>
+                        <div>
+                            <label for="x-max">X max</label>
+                            <input id="x-max" type="number" step="any" placeholder="auto">
+                        </div>
+                        <div>
+                            <label for="x-scale">X scale</label>
+                            <select id="x-scale">
+                                <option value="linear" selected>Linear</option>
+                                <option value="logarithmic">Log</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="axis-row">
+                        <div>
+                            <label for="y-min">Y min</label>
+                            <input id="y-min" type="number" step="any" placeholder="auto">
+                        </div>
+                        <div>
+                            <label for="y-max">Y max</label>
+                            <input id="y-max" type="number" step="any" placeholder="auto">
+                        </div>
+                        <div>
+                            <label for="y-scale">Y scale</label>
+                            <select id="y-scale">
+                                <option value="linear" selected>Linear</option>
+                                <option value="logarithmic">Log</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="axis-actions">
+                        <button id="apply-axes">Apply Axes</button>
+                        <button id="autoscale">Autoscale to Data</button>
+                    </div>
+                    <div id="status" aria-live="polite"></div>
                 </div>
             </div>
         </main>
@@ -50,8 +107,9 @@
             <p>© 2025 Vladimir Lopez. All rights reserved.</p>
         </footer>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@0.5.7"></script>
-    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.2/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.umd.min.js"></script>
+    <script src="script.js?v=1.2.0"></script>
 </body>
 </html>

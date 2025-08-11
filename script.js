@@ -1,151 +1,417 @@
-document.getElementById('add-row').addEventListener('click', () => {
-    const tableBody = document.querySelector('#data-table tbody');
-    const newRow = document.createElement('tr');
-    newRow.innerHTML = `
-        <td contenteditable="true"></td>
-        <td contenteditable="true"></td>
-    `;
-    tableBody.appendChild(newRow);
-});
+document.addEventListener('DOMContentLoaded', () => {
+    const chartCanvas = document.getElementById('chart');
+    let chart;
 
-document.getElementById('plot').addEventListener('click', () => {
-    const tableRows = document.querySelectorAll('#data-table tbody tr');
-    const data = Array.from(tableRows).map(row => {
-        const cells = row.querySelectorAll('td');
-        const x = parseFloat(cells[0].innerText);
-        const y = parseFloat(cells[1].innerText);
-        return { x, y };
-    }).filter(p => !isNaN(p.x) && !isNaN(p.y));
+    // Ensure plugins are registered when using UMD builds
+    try {
+        const w = window;
+        if (w && typeof Chart !== 'undefined') {
+            if (w['chartjs-plugin-annotation']) Chart.register(w['chartjs-plugin-annotation']);
+            if (w['ChartAnnotation']) Chart.register(w['ChartAnnotation']);
+            if (w['chartjsPluginAnnotation']) Chart.register(w['chartjsPluginAnnotation']);
+            if (w['chartjs-plugin-zoom']) Chart.register(w['chartjs-plugin-zoom']);
+            if (w['ChartZoom']) Chart.register(w['ChartZoom']);
+            if (w['chartjsPluginZoom']) Chart.register(w['chartjsPluginZoom']);
+        }
+    } catch (_) {}
 
-    const headers = document.querySelectorAll('#data-table th');
-    const xLabel = headers[0].innerText;
-    const yLabel = headers[1].innerText;
+        const state = {
+            title: 'Title',
+            xLabel: 'X-Axis',
+            yLabel: 'Y-Axis',
+        xScaleType: 'linear',
+        yScaleType: 'linear',
+        xMin: undefined,
+        xMax: undefined,
+        yMin: undefined,
+        yMax: undefined,
+        regressionLabelId: 'regression-label'
+    };
 
-    const xValues = data.map(p => p.x);
-    const yValues = data.map(p => p.y);
-
-    const { slope, intercept } = linearRegression(xValues, yValues);
-
-    const fitLine = xValues.map(x => ({ x, y: slope * x + intercept }));
-
-    const ctx = document.getElementById('chart').getContext('2d');
-    new Chart(ctx, {
-        type: 'scatter',
-        data: {
+    function buildChart() {
+        const data = {
             datasets: [
                 {
                     label: 'Data',
-                    data: data,
+                    data: [],
                     backgroundColor: '#007bff',
+                    borderColor: '#007bff',
+                    showLine: false,
+                    pointRadius: 5
                 },
                 {
                     label: 'Linear Fit',
-                    data: fitLine,
-                    borderColor: '#0056b3',
+                    data: [],
+                    borderColor: '#dc3545',
+                    borderWidth: 2,
+                    showLine: true,
                     type: 'line',
-                    fill: false,
+                    pointRadius: 0
+                }
+            ]
+        };
+
+        const options = {
+            responsive: true,
+            maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: false },
+                        annotation: {
+                    annotations: {}
                 },
-            ],
-        },
-        options: {
-            title: {
-                display: true,
-                text: `${yLabel} vs. ${xLabel}`,
-                fontColor: '#212529'
+                                zoom: {
+                                    pan: { enabled: true, mode: 'xy' },
+                                    zoom: {
+                                        wheel: { enabled: true },
+                                        pinch: { enabled: true },
+                                        drag: { enabled: false },
+                                        mode: 'xy'
+                                    }
+                                }
             },
             scales: {
-                xAxes: [{
-                    scaleLabel: {
-                        display: true,
-                        labelString: xLabel,
-                        fontColor: '#212529'
-                    },
-                    ticks: {
-                        fontColor: '#212529'
-                    }
-                }],
-                yAxes: [{
-                    scaleLabel: {
-                        display: true,
-                        labelString: yLabel,
-                        fontColor: '#212529'
-                    },
-                    ticks: {
-                        fontColor: '#212529'
-                    }
-                }],
-            },
-            annotation: {
-                annotations: [
-                    {
-                        type: 'label',
-                        xValue: 0.05,
-                        yValue: 0.95,
-                        xScaleID: 'x-axis-1',
-                        yScaleID: 'y-axis-1',
-                        content: `y = ${slope.toFixed(2)}x + ${intercept.toFixed(2)}`,
-                        font: {
-                            size: 16
-                        },
-                        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                        xAdjust: -150,
-                        yAdjust: -150
+                x: {
+                    type: state.xScaleType,
+                    title: { display: true, text: state.xLabel },
+                    ticks: { maxTicksLimit: 10 },
+                    min: state.xMin,
+                    max: state.xMax
+                },
+                y: {
+                    type: state.yScaleType,
+                    title: { display: true, text: state.yLabel },
+                    ticks: { maxTicksLimit: 8 },
+                    min: state.yMin,
+                    max: state.yMax
+                }
+            }
+        };
 
-                    },
-                ],
-            },
-        },
-    });
-});
-
-document.getElementById('clear').addEventListener('click', () => {
-    const tableBody = document.querySelector('#data-table tbody');
-    tableBody.innerHTML = `
-        <tr>
-            <td contenteditable="true"></td>
-            <td contenteditable="true"></td>
-        </tr>
-    `;
-
-    const headers = document.querySelectorAll('#data-table th');
-    headers[0].innerText = 'X-Variable (units)';
-    headers[1].innerText = 'Y-Variable (units)';
-
-    const chart = Chart.getChart('chart');
-    if (chart) {
-        chart.destroy();
+        const ctx = chartCanvas.getContext('2d');
+        chart = new Chart(ctx, { type: 'scatter', data, options });
     }
-});
 
-document.getElementById('export').addEventListener('click', () => {
-    const chart = Chart.getChart('chart');
-    if (chart) {
-        const url = chart.toBase64Image();
+    function parseTable() {
+        const rows = Array.from(document.querySelectorAll('#data-table tbody tr'));
+        const points = [];
+        for (const row of rows) {
+            const cells = row.querySelectorAll('td');
+            if (!cells || cells.length < 2) continue;
+            const x = parseFloat(cells[0].innerText);
+            const y = parseFloat(cells[1].innerText);
+            if (!Number.isNaN(x) && !Number.isNaN(y)) points.push({ x, y });
+        }
+        return points;
+    }
+
+        function setStatus(message, kind = 'info') {
+            const el = document.getElementById('status');
+            if (!el) return;
+            el.textContent = message || '';
+            el.className = kind ? `status ${kind}` : 'status';
+        }
+
+    function linearRegression(x, y) {
+        const n = x.length;
+        if (n < 2) return { slope: 0, intercept: 0 };
+        let sx = 0, sy = 0, sxy = 0, sxx = 0;
+        for (let i = 0; i < n; i++) {
+            const xi = x[i];
+            const yi = y[i];
+            sx += xi; sy += yi; sxy += xi * yi; sxx += xi * xi;
+        }
+        const denom = n * sxx - sx * sx;
+        if (denom === 0) return { slope: 0, intercept: sy / n };
+        const slope = (n * sxy - sx * sy) / denom;
+        const intercept = (sy - slope * sx) / n;
+        return { slope, intercept };
+    }
+
+        function updateRegressionAnnotation(slope, intercept, xData, yData) {
+            if (!xData || !yData || xData.length < 2) return;
+            const minX = Math.min(...xData);
+            const maxY = Math.max(...yData);
+            const rangeX = Math.max(...xData) - minX || 1;
+            const rangeY = maxY - Math.min(...yData) || 1;
+            // Position 5% from left, 5% below top of data range
+            const x = minX + 0.05 * rangeX;
+            const y = maxY - 0.05 * rangeY;
+            const text = `y = ${slope.toFixed(3)}x + ${intercept.toFixed(3)}`;
+        chart.options.plugins.annotation.annotations[state.regressionLabelId] = {
+            type: 'label',
+            xValue: x,
+            yValue: y,
+            backgroundColor: 'rgba(255,255,255,0.85)',
+            borderColor: 'rgba(0,0,0,0.4)',
+            borderWidth: 1,
+            borderRadius: 6,
+            content: [text],
+            font: { size: 14, family: getComputedStyle(document.body).fontFamily },
+            padding: 6,
+            callout: { display: false },
+            draggable: true
+        };
+    }
+
+    function applyAxesFromControls() {
+        const xMin = parseFloat(document.getElementById('x-min').value);
+        const xMax = parseFloat(document.getElementById('x-max').value);
+        const yMin = parseFloat(document.getElementById('y-min').value);
+        const yMax = parseFloat(document.getElementById('y-max').value);
+        const xScale = document.getElementById('x-scale').value;
+        const yScale = document.getElementById('y-scale').value;
+
+        state.xMin = Number.isNaN(xMin) ? undefined : xMin;
+        state.xMax = Number.isNaN(xMax) ? undefined : xMax;
+        state.yMin = Number.isNaN(yMin) ? undefined : yMin;
+        state.yMax = Number.isNaN(yMax) ? undefined : yMax;
+        state.xScaleType = xScale;
+        state.yScaleType = yScale;
+
+            // Log scales must be > 0; sanitize inputs
+            if (state.xScaleType === 'logarithmic') {
+                if (!(state.xMin > 0)) state.xMin = undefined;
+                if (!(state.xMax > 0)) state.xMax = undefined;
+            }
+            if (state.yScaleType === 'logarithmic') {
+                if (!(state.yMin > 0)) state.yMin = undefined;
+                if (!(state.yMax > 0)) state.yMax = undefined;
+            }
+
+        chart.options.scales.x.type = state.xScaleType;
+        chart.options.scales.y.type = state.yScaleType;
+        chart.options.scales.x.min = state.xMin;
+        chart.options.scales.x.max = state.xMax;
+        chart.options.scales.y.min = state.yMin;
+        chart.options.scales.y.max = state.yMax;
+            chart.update();
+            setStatus('');
+    }
+
+    function autoscaleToData() {
+        const pts = chart.data.datasets[0].data;
+        if (!pts || pts.length === 0) return;
+        const xs = pts.map(p => p.x);
+        const ys = pts.map(p => p.y);
+        const [xmin, xmax] = [Math.min(...xs), Math.max(...xs)];
+        const [ymin, ymax] = [Math.min(...ys), Math.max(...ys)];
+        const padX = (xmax - xmin || 1) * 0.05;
+        const padY = (ymax - ymin || 1) * 0.1;
+        chart.options.scales.x.min = xmin - padX;
+        chart.options.scales.x.max = xmax + padX;
+        chart.options.scales.y.min = ymin - padY;
+        chart.options.scales.y.max = ymax + padY;
+        document.getElementById('x-min').value = chart.options.scales.x.min.toString();
+        document.getElementById('x-max').value = chart.options.scales.x.max.toString();
+        document.getElementById('y-min').value = chart.options.scales.y.min.toString();
+        document.getElementById('y-max').value = chart.options.scales.y.max.toString();
+        chart.update();
+    }
+
+    function updateChart() {
+            const rawPts = parseTable();
+            // Filter for log scales
+            const pts = rawPts.filter(p => {
+                if (chart.options.scales.x.type === 'logarithmic' && !(p.x > 0)) return false;
+                if (chart.options.scales.y.type === 'logarithmic' && !(p.y > 0)) return false;
+                return true;
+            });
+            const skipped = rawPts.length - pts.length;
+            if (skipped > 0) setStatus(`Skipped ${skipped} point(s) not valid on log scale.`, 'warn');
+            else setStatus('');
+
+            const xs = pts.map(p => p.x);
+            const ys = pts.map(p => p.y);
+
+        // Sort by x for line drawing
+        const sorted = [...pts].sort((a,b) => a.x - b.x);
+
+            chart.data.datasets[0].data = sorted;
+
+            if (xs.length >= 2) {
+                const { slope, intercept } = linearRegression(xs, ys);
+                // Build fit line across current x-range
+                const xStart = Math.min(...xs);
+                const xEnd = Math.max(...xs);
+                chart.data.datasets[1].data = [
+                    { x: xStart, y: slope * xStart + intercept },
+                    { x: xEnd, y: slope * xEnd + intercept }
+                ];
+                updateRegressionAnnotation(slope, intercept, xs, ys);
+            } else {
+                chart.data.datasets[1].data = [];
+                chart.options.plugins.annotation.annotations = {};
+            }
+
+        const headers = document.querySelectorAll('#data-table thead th');
+        const xHeader = headers[0]?.innerText?.trim() || state.xLabel;
+        const yHeader = headers[1]?.innerText?.trim() || state.yLabel;
+        chart.options.scales.x.title.text = xHeader;
+        chart.options.scales.y.title.text = yHeader;
+
+        chart.update();
+    }
+
+    // UI bindings
+        document.getElementById('graph-title').addEventListener('input', (e) => {
+            state.title = e.target.innerText || 'Title';
+        });
+        // Axis label edits come from the table header and axis controls now
+
+    // Table row add/remove
+    document.getElementById('add-row').addEventListener('click', () => {
+        const tbody = document.querySelector('#data-table tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td contenteditable="true"></td>
+            <td contenteditable="true"></td>
+            <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+    document.querySelector('#data-table tbody').addEventListener('click', (e) => {
+        const btn = e.target.closest('.delete-row');
+        if (btn) {
+            const row = btn.closest('tr');
+            row?.remove();
+        }
+    });
+        // Debounced live update on edit
+        let updateTimer;
+        document.querySelector('#data-table tbody').addEventListener('input', () => {
+            clearTimeout(updateTimer);
+            updateTimer = setTimeout(() => {
+                updateChart();
+            }, 150);
+        });
+
+        // Keyboard navigation for editable cells
+        document.querySelector('#data-table').addEventListener('keydown', (e) => {
+            const cell = e.target.closest('td, th');
+            if (!cell || !cell.isContentEditable) return;
+            const tr = cell.parentElement;
+            const table = cell.closest('table');
+            const tbody = table.querySelector('tbody');
+            const isHeader = cell.tagName.toLowerCase() === 'th';
+
+            const getCellIndex = (c) => Array.from(c.parentElement.children).indexOf(c);
+            const colIndex = getCellIndex(cell);
+            function focusCell(r, c) {
+                const row = r?.children?.[c];
+                if (row) {
+                    row.focus();
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(row);
+                    range.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (isHeader) return; // keep header Enter default to break lines if needed
+                // Move to same column on next row (create one if at end)
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const rowIndex = rows.indexOf(tr);
+                if (rowIndex === rows.length - 1) {
+                    // add a row
+                    const newTr = document.createElement('tr');
+                    newTr.innerHTML = `
+                        <td contenteditable="true"></td>
+                        <td contenteditable="true"></td>
+                        <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
+                    `;
+                    tbody.appendChild(newTr);
+                    focusCell(newTr, colIndex);
+                } else {
+                    focusCell(rows[rowIndex + 1], colIndex);
+                }
+            } else if (e.key === 'Tab') {
+                // Move to next editable cell; wrap to first cell of next row
+                const cells = Array.from(table.querySelectorAll('tbody td[contenteditable="true"]'));
+                const idx = cells.indexOf(cell);
+                if (idx >= 0) {
+                    e.preventDefault();
+                    const next = cells[idx + (e.shiftKey ? -1 : 1)];
+                    if (next) {
+                        focusCell(next.parentElement, getCellIndex(next));
+                    } else if (!e.shiftKey) {
+                        // add a row and go to first cell
+                        const newTr = document.createElement('tr');
+                        newTr.innerHTML = `
+                            <td contenteditable="true"></td>
+                            <td contenteditable="true"></td>
+                            <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
+                        `;
+                        tbody.appendChild(newTr);
+                        focusCell(newTr, 0);
+                    }
+                }
+            }
+        });
+
+    document.getElementById('plot').addEventListener('click', updateChart);
+
+        // Update axis labels when table headers are edited
+        document.querySelector('#data-table thead').addEventListener('input', (e) => {
+            const headers = document.querySelectorAll('#data-table thead th');
+            const xHeader = headers[0]?.innerText?.trim() || state.xLabel;
+            const yHeader = headers[1]?.innerText?.trim() || state.yLabel;
+            chart.options.scales.x.title.text = xHeader;
+            chart.options.scales.y.title.text = yHeader;
+            chart.update();
+        });
+
+    document.getElementById('clear').addEventListener('click', () => {
+        const tbody = document.querySelector('#data-table tbody');
+        tbody.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td contenteditable="true"></td>
+                <td contenteditable="true"></td>
+                <td class="row-actions"><button class="delete-row" aria-label="Delete row">×</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+        chart.data.datasets[0].data = [];
+        chart.data.datasets[1].data = [];
+        chart.options.plugins.annotation.annotations = {};
+        chart.update();
+        setStatus('');
+    });
+
+    document.getElementById('export').addEventListener('click', () => {
+        // Temporarily hide overlays for export by cloning canvas
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = chartCanvas.width;
+        exportCanvas.height = chartCanvas.height;
+        const ctx = exportCanvas.getContext('2d');
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        ctx.drawImage(chartCanvas, 0, 0);
+        const url = exportCanvas.toDataURL('image/png');
         const a = document.createElement('a');
         a.href = url;
         a.download = 'linear-fit-graph.png';
         a.click();
-    }
+    });
+
+    document.getElementById('reset-zoom').addEventListener('click', () => {
+        chart.resetZoom();
+    });
+
+    document.getElementById('apply-axes').addEventListener('click', () => {
+        applyAxesFromControls();
+    });
+    document.getElementById('autoscale').addEventListener('click', () => {
+        autoscaleToData();
+    });
+
+        // Initialize
+        buildChart();
+        document.getElementById('graph-title').innerText = state.title;
 });
-
-function linearRegression(x, y) {
-    const n = x.length;
-    let sx = 0;
-    let sy = 0;
-    let sxy = 0;
-    let sxx = 0;
-    let syy = 0;
-
-    for (let i = 0; i < n; i++) {
-        sx += x[i];
-        sy += y[i];
-        sxy += x[i] * y[i];
-        sxx += x[i] * x[i];
-        syy += y[i] * y[i];
-    }
-
-    const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx);
-    const intercept = (sy - slope * sx) / n;
-
-    return { slope, intercept };
-}
