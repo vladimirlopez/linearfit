@@ -6,12 +6,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
         const w = window;
         if (w && typeof Chart !== 'undefined') {
-            if (w['chartjs-plugin-annotation']) Chart.register(w['chartjs-plugin-annotation']);
-            if (w['ChartAnnotation']) Chart.register(w['ChartAnnotation']);
-            if (w['chartjsPluginAnnotation']) Chart.register(w['chartjsPluginAnnotation']);
-            if (w['chartjs-plugin-zoom']) Chart.register(w['chartjs-plugin-zoom']);
-            if (w['ChartZoom']) Chart.register(w['ChartZoom']);
-            if (w['chartjsPluginZoom']) Chart.register(w['chartjsPluginZoom']);
+        // Register plugins robustly for UMD
+        const anno = w['chartjs-plugin-annotation'] || w['ChartAnnotation'] || w['chartjsPluginAnnotation'];
+        const zoom = w['chartjs-plugin-zoom'] || w['ChartZoom'] || w['chartjsPluginZoom'];
+        if (anno) Chart.register(anno);
+        if (zoom) Chart.register(zoom);
         }
     } catch (_) {}
 
@@ -111,6 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
             el.textContent = message || '';
             el.className = kind ? `status ${kind}` : 'status';
         }
+
+            function setEquationText(text) {
+                const el = document.getElementById('equation');
+                if (el) el.textContent = text || '';
+            }
 
     function linearRegression(x, y) {
         const n = x.length;
@@ -229,8 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             chart.data.datasets[0].data = sorted;
 
-            if (xs.length >= 2) {
-                const { slope, intercept } = linearRegression(xs, ys);
+                if (xs.length >= 2) {
+                    const { slope, intercept } = linearRegression(xs, ys);
                 // Build fit line across current x-range
                 const xStart = Math.min(...xs);
                 const xEnd = Math.max(...xs);
@@ -239,9 +243,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     { x: xEnd, y: slope * xEnd + intercept }
                 ];
                 updateRegressionAnnotation(slope, intercept, xs, ys);
+                    setEquationText(`y = ${slope.toFixed(4)}x + ${intercept.toFixed(4)}`);
             } else {
                 chart.data.datasets[1].data = [];
                 chart.options.plugins.annotation.annotations = {};
+                    setEquationText('');
             }
 
         const headers = document.querySelectorAll('#data-table thead th');
@@ -385,15 +391,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('export').addEventListener('click', () => {
-        // Temporarily hide overlays for export by cloning canvas
-        const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = chartCanvas.width;
-        exportCanvas.height = chartCanvas.height;
-        const ctx = exportCanvas.getContext('2d');
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-        ctx.drawImage(chartCanvas, 0, 0);
-        const url = exportCanvas.toDataURL('image/png');
+            // Compose title + chart into one image
+            const title = (document.getElementById('graph-title')?.innerText || '').trim();
+            const padding = 16; // space between title and chart
+            const titleHeight = title ? 32 : 0;
+            const width = chartCanvas.width;
+            const height = chartCanvas.height + titleHeight + (title ? padding : 0);
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = width;
+            exportCanvas.height = height;
+            const ctx = exportCanvas.getContext('2d');
+            // white background
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, width, height);
+            // draw title if present
+            if (title) {
+                ctx.fillStyle = '#111827';
+                ctx.font = '700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(title, width / 2, 8);
+            }
+            // draw chart
+            const chartOffsetY = title ? (titleHeight + padding) : 0;
+            ctx.drawImage(chartCanvas, 0, chartOffsetY);
+            const url = exportCanvas.toDataURL('image/png');
         const a = document.createElement('a');
         a.href = url;
         a.download = 'linear-fit-graph.png';
@@ -413,5 +435,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initialize
         buildChart();
-        document.getElementById('graph-title').innerText = state.title;
+            document.getElementById('graph-title').innerText = state.title;
 });
