@@ -1,0 +1,21 @@
+/*-- scss:defaults --*/
+
+// Base document colors
+$body-bg: #f8f9fa;
+$body-color: #212529;
+$link-color: #007bff;
+
+// Navbar
+$navbar-bg: #343a40;
+$navbar-fg: #f8f9fa;
+
+/*-- scss:rules --*/
+
+// Custom styles
+body {
+  font-family: sans-serif;
+}
+
+.navbar-brand {
+  font-weight: bold;
+}
